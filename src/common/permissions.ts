@@ -1,0 +1,35 @@
+export const READ_USER = "READ_USER";
+export const UPDATE_USER = "READ_USER";
+export const DELETE_USER = "DELETE_USER";
+export const CREATE_USER = "CREATE_USER";
+export const READ_USERS = "READ_USERS";
+
+type UserPermission =
+  | "READ_USER"
+  | "UPDATE_USER"
+  | "DELETE_USER"
+  | "READ_USERS"
+  | "CREATE_USER";
+
+export const userPermissions = [
+  READ_USER,
+  UPDATE_USER,
+  DELETE_USER,
+  CREATE_USER,
+  READ_USERS,
+];
+
+export enum PERMISSION{
+  CREATE_LEAD="USER_PERMISSION_CREATE_LEAD",
+  READ_LEAD="USER_PERMISSION_READ_LEAD",
+  UPDATE_LEAD="USER_PERMISSION_UPDATE_LEAD",
+  DELETE_LEAD="USER_PERMISSION_DELETE_LEAD",
+  USER_PERMISSION_CREATE_BULK_LEAD="USER_PERMISSION_CREATE_BULK_LEAD",
+  USER_PERMISSION_DELETE_BULK_LEAD="USER_PERMISSION_DELETE_BULK_LEAD"
+}
+
+type AdminPermission = "READ_USERS";
+
+export const adminPermissions = [READ_USERS];
+
+export type Permission = UserPermission | AdminPermission;
