@@ -84,7 +84,7 @@ class EmailManager {
       };
       this.SES_CLIENT.send(new SendEmailCommand(params));
     } catch (err) {
-      console.log("failed to send email", err);
+       console.log("failed to send email", err);
     }
   }
 }
