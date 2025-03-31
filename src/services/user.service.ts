@@ -554,7 +554,7 @@ class UserServices {
         } on CXOneGo. Please click on the button below to accept the invitation.
                 
                 <br> <br> 
-                <a href="https://localhost:5173/sign-up?email=${
+                <a href="http://localhost:5173/sign-up?email=${
                   invite?.email
                 }&company=${invite?.company}&role=${
           invite?.role
