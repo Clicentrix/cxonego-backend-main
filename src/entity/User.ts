@@ -24,6 +24,7 @@ import { Oppurtunity } from "./Oppurtunity";
 import { Activity } from "./Activity";
 import { Note } from "./Note";
 import { Subscription } from "./Subscription";
+import { Document } from "./Document";
 
 @Entity()
 export class User extends BaseEntity {
@@ -194,4 +195,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Subscription, (Subscription) => Subscription.admin)
   subscriptions: Subscription[];
+
+  @OneToMany(() => Document, (document) => document.uploadedBy)
+  documents: Document[];
 }

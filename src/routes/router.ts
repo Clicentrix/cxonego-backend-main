@@ -23,6 +23,7 @@ import subscriptionRouter from "./subscription.routes";
 import customPlanRequestRouter from "./customPlanRequest.routes";
 import superAdminRouter from "./superAdmin.routes";
 import cronRouter from "./cron.routes";
+import documentRouter from "./document.routes";
 // import customeToken from "./firebaseToken.routes";
 
 const router = Router({ mergeParams: true });
@@ -50,4 +51,5 @@ router.use("/subscription", subscriptionRouter);
 router.use("/customPlanRequest", customPlanRequestRouter);
 router.use("/superAdmin", superAdminRouter);
 router.use("/cron", cronRouter)
+router.use("/document", documentRouter)
 export default router;

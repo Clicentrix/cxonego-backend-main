@@ -11,6 +11,8 @@ import { Activity } from "./Activity";
 import { User } from "./User";
 import { Note } from "./Note";
 import { Organisation } from "./Organisation";
+import { Document } from "./Document";
+
 @Entity()
 export class Contact extends CustomBaseEntity{
     constructor(payload: Contact) {
@@ -159,6 +161,9 @@ export class Contact extends CustomBaseEntity{
     })
     @JoinColumn({ name: "organizationId" })
     organization:Organisation;
+
+    @OneToMany(() => Document, (document) => document.contact)
+    documents: Document[];
 
     @BeforeInsert()
     @BeforeUpdate()
