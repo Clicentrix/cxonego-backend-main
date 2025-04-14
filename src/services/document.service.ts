@@ -5,6 +5,7 @@ import { User } from "../entity/User";
 import { GoogleDriveService } from "./googleDrive.service";
 import { Not, IsNull } from "typeorm";
 import { roleNames } from "../common/utils";
+import { documentDecryption, multipleDocumentsDecryption } from "./decryption.service";
 
 export class DocumentService {
     private documentRepository = AppDataSource.getRepository(Document);
@@ -12,12 +13,60 @@ export class DocumentService {
     private userRepository = AppDataSource.getRepository(User);
     private googleDriveService = new GoogleDriveService();
 
-    async getAuthUrl() {
-        return this.googleDriveService.getAuthUrl();
+    async getAuthUrl(userId?: string): Promise<string> {
+        return this.googleDriveService.getAuthUrl(userId);
     }
 
-    async handleGoogleCallback(code: string) {
-        return await this.googleDriveService.setCredentials(code);
+    async handleGoogleCallback(code: string, userId?: string) {
+        try {
+            // Set credentials and store tokens if userId is provided
+            const tokens = await this.googleDriveService.setCredentials(code, userId);
+            return tokens;
+        } catch (error) {
+            console.error("Error handling Google callback:", error);
+            throw error;
+        }
+    }
+
+    async isUserConnectedToGoogle(userId: string): Promise<boolean> {
+        try {
+            console.log(`Checking Google connection for user ${userId}`);
+            
+            // First, check if the user exists
+            const user = await this.userRepository.findOne({ where: { userId } });
+            if (!user) {
+                console.log(`User ${userId} not found in database`);
+                return false;
+            }
+            
+            // Get tokens from GoogleDriveService
+            const tokens = await this.googleDriveService.getUserTokens(userId);
+            
+            // Log token information for debugging (without exposing actual token values)
+            console.log(`Google tokens for user ${userId}:`, {
+                hasTokens: !!tokens,
+                hasRefreshToken: tokens ? !!tokens.refreshToken : false,
+                hasAccessToken: tokens ? !!tokens.accessToken : false,
+                tokenExpiry: tokens ? new Date(tokens.expiryDate).toISOString() : null
+            });
+            
+            // Verify we have tokens and at least a refresh token
+            if (!tokens) {
+                console.log(`User ${userId} has no Google tokens`);
+                return false;
+            }
+            
+            if (!tokens.refreshToken) {
+                console.log(`User ${userId} is missing refresh token`);
+                return false;
+            }
+            
+            console.log(`User ${userId} is connected to Google Drive with valid tokens`);
+            return true;
+        } catch (error) {
+            console.error(`Error checking if user ${userId} is connected to Google:`, error);
+            return false;
+        }
     }
 
     async uploadDocument(
@@ -41,8 +90,15 @@ export class DocumentService {
             throw new Error('Unauthorized to upload document for this contact');
         }
 
-        // Create file in Drive
-        const { fileId, webViewLink } = await this.googleDriveService.uploadFile(
+        // Check if user is connected to Google Drive
+        const isConnected = await this.isUserConnectedToGoogle(userId);
+        if (!isConnected) {
+            throw new Error('User not connected to Google Drive. Please authenticate first.');
+        }
+
+        // Create file in Drive using user's tokens
+        const { fileId, webViewLink } = await this.googleDriveService.uploadFileWithUserAuth(
+            userId,
             file.buffer,
             file.mimetype,
             file.originalname
@@ -69,10 +125,17 @@ export class DocumentService {
         }
 
         const document = new Document(documentData);
-        return await this.documentRepository.save(document);
+        
+        // Encrypt the document before saving
+        document.encrypt();
+        
+        const savedDocument = await this.documentRepository.save(document);
+        
+        // Decrypt the document before returning it
+        return await documentDecryption(savedDocument);
     }
 
-    async getDocumentsByContact(contactId: string, userId: string) {
+    async getDocumentsByContact(contactId: string, userId: string, page: number = 1, limit: number = 10, search?: string, createdAt?: string, updatedAt?: string) {
         // Get the user with roles
         const user = await this.userRepository.findOne({
             where: { userId },
@@ -100,30 +163,65 @@ export class DocumentService {
 
         // Check if user is an organization owner/admin
         const isAdmin = user.roles.some(role => role.roleName === roleNames.ADMIN);
-
-        if (isAdmin) {
-            // Organization owners can see all documents for the contact
-            return await this.documentRepository.find({
-                where: {
-                    contact: { contactId },
-                    deletedAt: IsNull()
-                },
-                relations: ['uploadedBy']
-            });
-        } else {
-            // Regular users can only see documents they uploaded
-            return await this.documentRepository.find({
-                where: {
-                    contact: { contactId },
-                    uploadedBy: { userId },
-                    deletedAt: IsNull()
-                },
-                relations: ['uploadedBy']
-            });
+        
+        // Calculate skip value for pagination
+        const skip = (page - 1) * limit;
+        
+        // Build the query
+        let query = this.documentRepository.createQueryBuilder('document')
+            .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
+            .where('document.contact = :contactId', { contactId })
+            .andWhere('document.deletedAt IS NULL');
+        
+        // Add user restriction if not admin
+        if (!isAdmin) {
+            query = query.andWhere('document.uploadedBy = :userId', { userId });
         }
+        
+        // Add search condition if provided
+        if (search) {
+            query = query.andWhere(
+                '(document.fileName LIKE :search OR document.description LIKE :search)', 
+                { search: `%${search}%` }
+            );
+        }
+        
+        // Add sorting based on createdAt or updatedAt if provided
+        if (createdAt) {
+            query = query.orderBy('document.createdAt', createdAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else if (updatedAt) {
+            query = query.orderBy('document.updatedAt', updatedAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else {
+            // Default sorting
+            query = query.orderBy('document.createdAt', 'DESC');
+        }
+        
+        // Get total count for pagination
+        const total = await query.getCount();
+        
+        // Add pagination
+        query = query.skip(skip).take(limit);
+        
+        // Get documents
+        const documents = await query.getMany();
+        
+        // Decrypt documents
+        const decryptedDocuments = await multipleDocumentsDecryption(documents);
+        console.log("decryptedDocuments is this :", decryptedDocuments);
+        
+        // Return with pagination details
+        return {
+            data: decryptedDocuments,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        };
     }
 
-    async getAllOrganizationDocuments(userId: string) {
+    async getAllOrganizationDocuments(userId: string, page: number = 1, limit: number = 10, search?: string, createdAt?: string, updatedAt?: string) {
         // Get the user with roles and organization
         const user = await this.userRepository.findOne({
             where: { userId },
@@ -145,25 +243,108 @@ export class DocumentService {
             throw new Error('Only organization admins can access all documents');
         }
 
-        // Get all documents for the organization
-        return await this.documentRepository.find({
-            where: {
-                organization: { organisationId: user.organisation.organisationId },
-                deletedAt: IsNull()
-            },
-            relations: ['uploadedBy', 'contact']
-        });
+        // Calculate skip value for pagination
+        const skip = (page - 1) * limit;
+        
+        // Build the query
+        let query = this.documentRepository.createQueryBuilder('document')
+            .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
+            .leftJoinAndSelect('document.contact', 'contact')
+            .where('document.organization = :organizationId', { organizationId: user.organisation.organisationId })
+            .andWhere('document.deletedAt IS NULL');
+        
+        // Add search condition if provided
+        if (search) {
+            query = query.andWhere(
+                '(document.fileName LIKE :search OR document.description LIKE :search)', 
+                { search: `%${search}%` }
+            );
+        }
+        
+        // Add sorting based on createdAt or updatedAt if provided
+        if (createdAt) {
+            query = query.orderBy('document.createdAt', createdAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else if (updatedAt) {
+            query = query.orderBy('document.updatedAt', updatedAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else {
+            // Default sorting
+            query = query.orderBy('document.createdAt', 'DESC');
+        }
+        
+        // Get total count for pagination
+        const total = await query.getCount();
+        
+        // Add pagination
+        query = query.skip(skip).take(limit);
+        
+        // Get documents
+        const documents = await query.getMany();
+        
+        // Decrypt documents
+        const decryptedDocuments = await multipleDocumentsDecryption(documents);
+        
+        // Return with pagination details
+        return {
+            data: decryptedDocuments,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        };
     }
 
-    async getUserDocuments(userId: string) {
-        // Get documents uploaded by the user
-        return await this.documentRepository.find({
-            where: {
-                uploadedBy: { userId },
-                deletedAt: IsNull()
-            },
-            relations: ['contact']
-        });
+    async getUserDocuments(userId: string, page: number = 1, limit: number = 10, search?: string, createdAt?: string, updatedAt?: string) {
+        // Calculate skip value for pagination
+        const skip = (page - 1) * limit;
+        
+        // Build the query
+        let query = this.documentRepository.createQueryBuilder('document')
+            .leftJoinAndSelect('document.contact', 'contact')
+            .where('document.uploadedBy = :userId', { userId })
+            .andWhere('document.deletedAt IS NULL');
+        
+        // Add search condition if provided
+        if (search) {
+            query = query.andWhere(
+                '(document.fileName LIKE :search OR document.description LIKE :search)', 
+                { search: `%${search}%` }
+            );
+        }
+        
+        // Add sorting based on createdAt or updatedAt if provided
+        if (createdAt) {
+            query = query.orderBy('document.createdAt', createdAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else if (updatedAt) {
+            query = query.orderBy('document.updatedAt', updatedAt.toUpperCase() === 'DESC' ? 'DESC' : 'ASC');
+        } else {
+            // Default sorting
+            query = query.orderBy('document.createdAt', 'DESC');
+        }
+        
+        // Get total count for pagination
+        const total = await query.getCount();
+        
+        // Add pagination
+        query = query.skip(skip).take(limit);
+        
+        // Get documents
+        const documents = await query.getMany();
+        
+        // Decrypt documents
+        const decryptedDocuments = await multipleDocumentsDecryption(documents);
+        
+        // Return with pagination details
+        return {
+            data: decryptedDocuments,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit)
+            }
+        };
     }
 
     async deleteDocument(documentId: string, userId: string) {
@@ -199,5 +380,9 @@ export class DocumentService {
         // Soft delete the document
         document.deletedAt = new Date();
         return await this.documentRepository.save(document);
+    }
+
+    async getForceReconnectUrl(userId: string): Promise<string> {
+        return this.googleDriveService.getForceReconnectUrl(userId);
     }
 } 

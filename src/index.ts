@@ -45,7 +45,12 @@ app.use(
   )
 );
 
-app.use(cors({ credentials: true, origin: true }));
+app.use(cors({ 
+  credentials: true, 
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(bodyParser.json({ type: "application/json" }));
@@ -56,6 +61,13 @@ app.use(
       /**
        * ! mention path where you dont wanna check token in following format RegExp("/api/v1/user/auth"),
        *  */
+      RegExp("^/api/v1/cron/markUpcomingToActive"),
+      RegExp("/api/v1/document/auth/google/callback"),
+      RegExp("/api/v1/document/auth/google"),
+      RegExp("/api/v1/document/google/connection"),
+      RegExp("/api/v1/document/auth/google/connection"),
+      RegExp("/api/v1/document/auth/google/reconnect"),
+      RegExp("/api/v1/document/debug/connection"),
       RegExp("/api/v1/email-poc/"),
       RegExp("/api/v1/users/invite"),
       RegExp("/api/v1/users/update"),
@@ -109,6 +121,7 @@ app.use(errorMiddleware);
 
 app.listen(port, async () => {
   logger.info("App Started on port", { port });
+  console.log(`Server running at http://localhost:${port}`);
   try {
     await AppDataSource.initialize();
     logger.info("Database connection successful...");
