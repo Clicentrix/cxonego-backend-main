@@ -14,6 +14,8 @@ import { User } from "../entity/User";
 import { Plan } from "../entity/Plan";
 import { Subscription } from "../entity/Subscription";
 import { CustomPlanRequest } from "../entity/CustomPlanRequest";
+import { Document } from "../entity/Document";
+
 export const accountDecryption = async (company: Account) => {
   if (company?.accountName) company.accountName = decrypt(company.accountName);
   if (company?.country) company.country = decrypt(company.country);
@@ -280,4 +282,21 @@ export const customPlanRequestDecryption = async (
     requestData.organization = decrypt(requestData.organization);
   if (requestData?.message) requestData.message = decrypt(requestData.message);
   return requestData;
+};
+
+export const documentDecryption = async (document: Document) => {
+  if (document?.fileName) document.fileName = decrypt(document.fileName);
+  if (document?.description) document.description = decrypt(document.description);
+  return document;
+};
+
+export const multipleDocumentsDecryption = async (documents: Array<Document>) => {
+  if (!documents || documents.length === 0) return documents;
+  
+  const documentsArray: Array<Document> = [];
+  for (let document of documents) {
+    document = await documentDecryption(document);
+    documentsArray.push(document);
+  }
+  return documentsArray;
 };

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { DocumentController } from "../controllers/document.controller";
 import * as multer from "multer";
+import { AppDataSource } from "../data-source";
+import { User } from "../entity/User";
 
 const router = Router();
 const documentController = new DocumentController();
@@ -53,6 +55,98 @@ router.get("/auth/google", documentController.getGoogleAuthUrl.bind(documentCont
  *         description: Failed to authenticate
  */
 router.get("/auth/google/callback", documentController.handleGoogleCallback.bind(documentController));
+
+/**
+ * @swagger
+ * /api/v1/document/google/connection:
+ *   get:
+ *     tags:
+ *       - Documents
+ *     summary: Check Google Drive connection
+ *     description: Checks if the user is connected to Google Drive
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the user to check connection for
+ *     responses:
+ *       200:
+ *         description: Google Drive connection checked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     connected:
+ *                       type: boolean
+ *                       description: Whether the user is connected to Google Drive
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - No user ID provided
+ *       500:
+ *         description: Failed to check Google Drive connection
+ */
+router.get("/google/connection", documentController.checkGoogleConnection.bind(documentController));
+
+/**
+ * @swagger
+ * /api/v1/document/debug/connection:
+ *   get:
+ *     tags:
+ *       - Documents
+ *     summary: Debug endpoint for Google Drive connection
+ *     description: Provides detailed debug information about Google Drive connection
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the user to check connection for
+ *     responses:
+ *       200:
+ *         description: Debug information returned successfully
+ */
+router.get("/debug/connection", async (req, res) => {
+    try {
+        const userId = req.query.userId as string;
+        
+        if (!userId) {
+            return res.status(400).json({ error: "userId query parameter is required" });
+        }
+        
+        // Try to find the user
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo.findOne({ where: { userId } });
+        
+        if (!user) {
+            return res.status(404).json({ error: "User not found", userId });
+        }
+        
+        // Return debug info
+        return res.status(200).json({
+            userId,
+            hasGoogleTokens: !!user.googleTokens,
+            googleTokens: user.googleTokens ? {
+                hasRefreshToken: !!user.googleTokens.refreshToken,
+                hasAccessToken: !!user.googleTokens.accessToken,
+                tokenExpiry: user.googleTokens.expiryDate ? new Date(user.googleTokens.expiryDate).toISOString() : null
+            } : null,
+            message: "This is a debug endpoint to verify Google Drive connection setup"
+        });
+    } catch (error) {
+        console.error("Error in debug endpoint:", error);
+        return res.status(500).json({ error: "Internal server error", message: error.message });
+    }
+});
 
 /**
  * @swagger
@@ -206,5 +300,79 @@ router.delete(
     "/:documentId",
     documentController.deleteDocument.bind(documentController)
 );
+
+/**
+ * @swagger
+ * /api/v1/document/auth/google/reconnect:
+ *   get:
+ *     tags:
+ *       - Documents
+ *     summary: Force reconnection with Google Drive
+ *     description: Creates a URL that forces the consent screen to appear to get a new refresh token
+ *     responses:
+ *       200:
+ *         description: Reconnection URL generated successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to generate reconnect URL
+ */
+router.get("/auth/google/reconnect", documentController.forceGoogleReconnect.bind(documentController));
+
+/**
+ * @swagger
+ * /api/v1/document/auth/google/connection:
+ *   get:
+ *     tags:
+ *       - Documents
+ *     summary: Alternative path for checking Google Drive connection
+ *     description: Same as /google/connection endpoint, but with an alternative path
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the user to check connection for
+ *     responses:
+ *       200:
+ *         description: Google Drive connection checked successfully
+ *       401:
+ *         description: Unauthorized - No user ID provided
+ *       500:
+ *         description: Failed to check Google Drive connection
+ */
+router.get("/auth/google/connection", documentController.checkGoogleConnection.bind(documentController));
+
+/**
+ * Temporary debug helper for troubleshooting path issues
+ */
+router.get("*connection*", (req, res, next) => {
+    console.log("DEBUG: Received request to a connection-related path");
+    console.log(`Path: ${req.path}`);
+    console.log(`Query: ${JSON.stringify(req.query)}`);
+    console.log(`Method: ${req.method}`);
+    
+    // If this is a known path, let the actual handler deal with it
+    if (
+        req.path === '/google/connection' || 
+        req.path === '/auth/google/connection' || 
+        req.path === '/debug/connection'
+    ) {
+        return next();
+    }
+    
+    // For any other path with "connection" in it, provide helpful info
+    return res.status(200).json({
+        message: "Connection check debug helper",
+        receivedPath: req.path,
+        recommendedPaths: [
+            "/api/v1/document/google/connection", 
+            "/api/v1/document/auth/google/connection",
+            "/api/v1/document/debug/connection"
+        ],
+        queryParams: req.query
+    });
+});
 
 export default router; 

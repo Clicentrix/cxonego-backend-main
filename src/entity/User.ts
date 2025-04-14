@@ -151,6 +151,16 @@ export class User extends BaseEntity {
     isBlocked: boolean;
   }[]
 
+  @Column({
+    type: "json",
+    nullable: true
+  })
+  googleTokens: {
+    refreshToken: string;
+    accessToken: string;
+    expiryDate: number;
+  };
+
   @ManyToMany(() => Role, (role) => role.users, {
     eager: true,
     cascade: true,

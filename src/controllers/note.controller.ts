@@ -6,6 +6,7 @@ import { errorHandler } from "../common/errors";
 import { AppDataSource } from "../data-source";
 import { Role } from "../entity/Role";
 import { DateRangeParamsType } from "../schemas/comman.schemas";
+import { log } from "console";
 
 const noteServices = new NoteServices();
 class NoteController {
@@ -238,6 +239,8 @@ class NoteController {
         organizationId,
         dateRange
       );
+
+      console.log("notes is this :", notes);
 
       if (notes?.data?.length == 0) {
         return makeResponse(response, 200, false, "Notes not found", null);
