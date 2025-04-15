@@ -5,7 +5,7 @@ import { User } from "../entity/User";
 import { GoogleDriveService } from "./googleDrive.service";
 import { Not, IsNull } from "typeorm";
 import { roleNames } from "../common/utils";
-import { documentDecryption, multipleDocumentsDecryption } from "./decryption.service";
+import { documentDecryption, multipleDocumentsDecryption, userDecryption } from "./decryption.service";
 
 export class DocumentService {
     private documentRepository = AppDataSource.getRepository(Document);
@@ -170,6 +170,25 @@ export class DocumentService {
         // Build the query
         let query = this.documentRepository.createQueryBuilder('document')
             .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
+            // Select only necessary user fields to avoid decrypting unnecessary ones
+            .select([
+                'document',
+                'uploadedBy.userId',
+                'uploadedBy.email',
+                'uploadedBy.firstName',
+                'uploadedBy.lastName',
+                'uploadedBy.countryCode',
+                'uploadedBy.phone',
+                'uploadedBy.country',
+                'uploadedBy.state',
+                'uploadedBy.city',
+                'uploadedBy.theme',
+                'uploadedBy.currency',
+                'uploadedBy.industry',
+                'uploadedBy.jobtitle',
+                'uploadedBy.primaryIntension',
+                'uploadedBy.fcmWebToken'
+            ])
             .where('document.contact = :contactId', { contactId })
             .andWhere('document.deletedAt IS NULL');
         
@@ -205,8 +224,19 @@ export class DocumentService {
         // Get documents
         const documents = await query.getMany();
         
-        // Decrypt documents
-        const decryptedDocuments = await multipleDocumentsDecryption(documents);
+        // Decrypt documents AND the nested uploadedBy user
+        const decryptedDocuments = [];
+        for (const doc of documents) {
+            // First, decrypt the document fields
+            const decryptedDoc = await documentDecryption(doc);
+            
+            // Then, if uploadedBy exists, decrypt its fields
+            if (decryptedDoc.uploadedBy) {
+                decryptedDoc.uploadedBy = await userDecryption(decryptedDoc.uploadedBy);
+            }
+            decryptedDocuments.push(decryptedDoc);
+        }
+        
         console.log("decryptedDocuments is this :", decryptedDocuments);
         
         // Return with pagination details
