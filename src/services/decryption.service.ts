@@ -287,6 +287,7 @@ export const customPlanRequestDecryption = async (
 export const documentDecryption = async (document: Document) => {
   if (document?.fileName) document.fileName = decrypt(document.fileName);
   if (document?.description) document.description = decrypt(document.description);
+  if (document?.customDocumentType) document.customDocumentType = decrypt(document.customDocumentType);
   return document;
 };
 

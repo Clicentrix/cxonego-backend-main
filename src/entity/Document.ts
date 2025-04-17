@@ -5,6 +5,17 @@ import { User } from "./User";
 import { Organisation } from "./Organisation";
 import { encryption } from "../common/utils";
 
+// Define the document types enum
+export enum DocumentType {
+    NDA = 'NDA',
+    MSA = 'MSA',
+    SOW = 'SOW',
+    SLA = 'SLA',
+    AMC = 'AMC',
+    MOU = 'MOU',
+    OTHER = 'OTHER'
+}
+
 @Entity()
 export class Document extends CustomBaseEntity {
     constructor(payload: Document) {
@@ -29,6 +40,22 @@ export class Document extends CustomBaseEntity {
 
     @Column({ nullable: true })
     description: string;
+
+    @Column({
+        type: 'enum',
+        enum: DocumentType,
+        nullable: true
+    })
+    documentType: DocumentType;
+
+    @Column({ nullable: true })
+    customDocumentType: string;
+
+    @Column({ nullable: true })
+    startTime: Date;
+
+    @Column({ nullable: true })
+    endTime: Date;
 
     @ManyToOne(() => Contact, (contact) => contact.documents, {
         onUpdate: "CASCADE",
@@ -55,5 +82,6 @@ export class Document extends CustomBaseEntity {
     encrypt() {
         if (this.fileName) this.fileName = encryption(this.fileName);
         if (this.description) this.description = encryption(this.description);
+        if (this.customDocumentType) this.customDocumentType = encryption(this.customDocumentType);
     }
 } 
