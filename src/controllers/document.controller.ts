@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { DocumentService } from "../services/document.service";
 import { buildResponse } from "../common/utils";
+import { DocumentType } from "../entity/Document";
 
 // Extend the Request type to include user property
 interface ExtendedRequest extends Request {
@@ -122,7 +123,7 @@ export class DocumentController {
     async uploadDocument(req: ExtendedRequest, res: Response) {
         try {
             const { contactId } = req.params;
-            const { description } = req.body;
+            const { description, documentType, customDocumentType, startTime, endTime } = req.body;
             const userId = req.user?.userId;
 
             if (!req.file) {
@@ -133,11 +134,39 @@ export class DocumentController {
                 return res.status(401).json(buildResponse("", "Unauthorized"));
             }
 
+            // Validate document type
+            if (documentType && !Object.values(DocumentType).includes(documentType)) {
+                return res.status(400).json(buildResponse("", "Invalid document type. Must be one of: NDA, MSA, SOW, SLA, AMC, MOU, OTHER"));
+            }
+
+            // Validate custom document type is provided when documentType is 'OTHER'
+            if (documentType === DocumentType.OTHER && !customDocumentType) {
+                return res.status(400).json(buildResponse("", "Custom document type is required when document type is 'OTHER'"));
+            }
+            
+            // Validate start and end times if provided
+            if (startTime && endTime) {
+                const startDate = new Date(startTime);
+                const endDate = new Date(endTime);
+                
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                    return res.status(400).json(buildResponse("", "Invalid date format for start time or end time"));
+                }
+                
+                if (startDate > endDate) {
+                    return res.status(400).json(buildResponse("", "Start time must be before end time"));
+                }
+            }
+
             const document = await this.documentService.uploadDocument(
                 req.file,
                 contactId,
                 userId,
-                description
+                description,
+                documentType,
+                customDocumentType,
+                startTime ? new Date(startTime) : undefined,
+                endTime ? new Date(endTime) : undefined
             );
 
             return res.status(201).json(buildResponse(document, "Document uploaded successfully"));

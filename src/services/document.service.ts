@@ -73,7 +73,11 @@ export class DocumentService {
         file: Express.Multer.File,
         contactId: string,
         userId: string,
-        description?: string
+        description?: string,
+        documentType?: string,
+        customDocumentType?: string,
+        startTime?: Date,
+        endTime?: Date
     ) {
         const contact = await this.contactRepository.findOne({ where: { contactId } });
         if (!contact) {
@@ -119,9 +123,25 @@ export class DocumentService {
             documentData.organization = user.organisation;
         }
 
-        // Only add description if provided
+        // Only add fields if they are provided
         if (description) {
             documentData.description = description;
+        }
+        
+        if (documentType) {
+            documentData.documentType = documentType;
+        }
+        
+        if (customDocumentType) {
+            documentData.customDocumentType = customDocumentType;
+        }
+        
+        if (startTime) {
+            documentData.startTime = startTime;
+        }
+        
+        if (endTime) {
+            documentData.endTime = endTime;
         }
 
         const document = new Document(documentData);
