@@ -51,6 +51,21 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Add specific CORS settings for captcha endpoint
+app.use('/api/v1/superAdmin/verifyCaptcha', cors({
+  credentials: true,
+  origin: '*', // Allow all origins for captcha verification
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+// Add security headers
+app.use((_req, res, next) => {
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(bodyParser.json({ type: "application/json" }));

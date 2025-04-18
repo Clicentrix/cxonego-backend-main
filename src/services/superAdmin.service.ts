@@ -73,21 +73,47 @@ class SuperAdminService {
   }
 
   async verifyCaptcha(request: Request) {
-    const secretKey = process.env.CAPTCHA_SECRET_KEY;
-    if (!secretKey) {
-      throw new ResourceNotFoundError("Captcha secret key not found");
+    try {
+      const secretKey = process.env.CAPTCHA_SECRET_KEY;
+      if (!secretKey) {
+        console.error("CAPTCHA_SECRET_KEY environment variable is not set");
+        throw new ResourceNotFoundError("Captcha secret key not found");
+      }
+      
+      const token = request.body.token;
+      if (!token) {
+        console.error("Captcha token not provided in request body");
+        throw new ResourceNotFoundError("Captcha token not found");
+      }
+      
+      console.log("Attempting to verify captcha token");
+      
+      // Use URLSearchParams instead of including parameters directly in the URL
+      const params = new URLSearchParams();
+      params.append('secret', secretKey);
+      params.append('response', token);
+      
+      const { data } = await axios.post(
+        'https://www.google.com/recaptcha/api/siteverify',
+        params.toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        }
+      );
+      
+      console.log("Captcha verification response:", data);
+      
+      if (!data.success) {
+        console.error("Captcha verification failed:", data['error-codes']);
+      }
+      
+      return data?.success;
+    } catch (error) {
+      console.error("Error during captcha verification:", error.message);
+      throw error;
     }
-    const token = request.body.token;
-    if (!token) {
-      throw new ResourceNotFoundError("Captcha token not found");
-    }
-    // console.log(secretKey, token);
-    const { data } = await axios.post(
-      `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`
-    );
-    // console.log(data);
-
-    return data?.success;
   }
 
   //called by super admin: disable this user in enitity and in his admin's invited array if he's not an admin himself..
