@@ -47,7 +47,7 @@ app.use(
 
 app.use(cors({ 
   credentials: true, 
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://13.235.48.242:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -55,7 +55,7 @@ app.use(cors({
 // Add specific CORS settings for captcha endpoint
 app.use('/api/v1/superAdmin/verifyCaptcha', cors({
   credentials: true,
-  origin: '*', // Allow all origins for captcha verification
+  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://13.235.48.242:5173'],
   methods: ['POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type']
 }));
