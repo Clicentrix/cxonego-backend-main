@@ -74,44 +74,85 @@ class SuperAdminService {
 
   async verifyCaptcha(request: Request) {
     try {
+      console.log("====== CAPTCHA VERIFICATION ATTEMPT ======");
       const secretKey = process.env.CAPTCHA_SECRET_KEY;
       if (!secretKey) {
         console.error("CAPTCHA_SECRET_KEY environment variable is not set");
         throw new ResourceNotFoundError("Captcha secret key not found");
       }
+      console.log("Secret key available (first 5 chars):", secretKey.substring(0, 5) + "...");
       
       const token = request.body.token;
       if (!token) {
         console.error("Captcha token not provided in request body");
         throw new ResourceNotFoundError("Captcha token not found");
       }
-      
-      console.log("Attempting to verify captcha token");
+      console.log("Token received (first 10 chars):", token.substring(0, 10) + "...");
+      console.log("Request headers:", JSON.stringify(request.headers));
+      console.log("Client IP:", request.ip);
+      console.log("Request origin:", request.headers.origin || "No origin header");
       
       // Use URLSearchParams instead of including parameters directly in the URL
       const params = new URLSearchParams();
       params.append('secret', secretKey);
       params.append('response', token);
+      params.append('remoteip', request.ip); // Add remote IP for better verification
       
-      const { data } = await axios.post(
-        'https://www.google.com/recaptcha/api/siteverify',
-        params.toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
+      console.log("Making request to Google reCAPTCHA API...");
+      console.log("Request URL: https://www.google.com/recaptcha/api/siteverify");
+      console.log("Request params:", params.toString().replace(secretKey, "SECRET_KEY_HIDDEN"));
+      
+      try {
+        const { data } = await axios.post(
+          'https://www.google.com/recaptcha/api/siteverify',
+          params.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
           }
+        );
+        
+        console.log("Full reCAPTCHA API response:", JSON.stringify(data));
+        
+        if (!data.success) {
+          console.error("Captcha verification failed. Error codes:", data['error-codes']);
+          console.error("Possible reasons:");
+          
+          // Explain common error codes
+          if (data['error-codes'] && data['error-codes'].includes('invalid-input-secret')) {
+            console.error("- Your secret key is invalid or incorrect");
+          }
+          if (data['error-codes'] && data['error-codes'].includes('invalid-input-response')) {
+            console.error("- The captcha token is invalid or malformed");
+          }
+          if (data['error-codes'] && data['error-codes'].includes('timeout-or-duplicate')) {
+            console.error("- The captcha token has expired or was already used");
+          }
+          if (data['error-codes'] && data['error-codes'].includes('hostname-mismatch')) {
+            console.error("- DOMAIN PROBLEM: Your EC2 IP is not registered in reCAPTCHA admin console");
+            console.error("- Go to https://www.google.com/recaptcha/admin/ and add your domain: 13.235.48.242");
+          }
+        } else {
+          console.log("Captcha verification successful!");
         }
-      );
-      
-      console.log("Captcha verification response:", data);
-      
-      if (!data.success) {
-        console.error("Captcha verification failed:", data['error-codes']);
+        
+        return data?.success;
+      } catch (axiosError) {
+        console.error("Network error contacting Google reCAPTCHA API:");
+        console.error("Error details:", axiosError.message);
+        if (axiosError.response) {
+          console.error("Response status:", axiosError.response.status);
+          console.error("Response data:", axiosError.response.data);
+        }
+        throw axiosError;
       }
-      
-      return data?.success;
     } catch (error) {
-      console.error("Error during captcha verification:", error.message);
+      console.error("====== CAPTCHA VERIFICATION ERROR ======");
+      console.error("Error type:", error.constructor.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+      console.error("=========================================");
       throw error;
     }
   }
