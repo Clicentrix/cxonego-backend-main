@@ -57,8 +57,6 @@ jobs:
         username: ubuntu
         key: ${{ secrets.SSH }}
         script: |
-          export PATH=$PATH:/usr/bin:/usr/local/bin:/home/ubuntu/.npm-global/bin:/home/ubuntu/.nvm/versions/node/*/bin
-          
-          cd /home/ubuntu/${{ env.PROJECT_NAME }}
+          cd /home/ubuntu/cxonego-backend-main
           cd src
-          pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
+          /exact/path/to/pm2 reload cxonego-backend-main || /exact/path/to/pm2 start index.js --name cxonego-backend-main
