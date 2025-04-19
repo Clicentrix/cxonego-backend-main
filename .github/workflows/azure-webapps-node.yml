@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - Cx-document
+  workflow_dispatch: 
 
 env:
   PROJECT_NAME: cxonego-backend-main
