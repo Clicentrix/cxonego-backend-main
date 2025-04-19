@@ -3,7 +3,7 @@ import { DocumentService } from "../services/document.service";
 import { buildResponse } from "../common/utils";
 import { DocumentType } from "../entity/Document";
 
-// Extend the Request type to include user property
+
 interface ExtendedRequest extends Request {
     user?: {
         userId: string;
@@ -25,7 +25,7 @@ export class DocumentController {
                 console.log(`Using userId from query parameter for auth URL: ${userId}`);
             }
             
-            // Generate auth URL with userId if available
+            console.log("userId is this:", userId);
             const authUrl = await this.documentService.getAuthUrl(userId);
             
             console.log(`Generated Google auth URL ${userId ? 'with' : 'without'} user ID`);
