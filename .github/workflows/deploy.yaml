@@ -61,8 +61,4 @@ jobs:
           
           cd /home/ubuntu/${{ env.PROJECT_NAME }}
           cd src
-          
-        
-          
-          # Restart PM2 process or start if not running
           pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
