@@ -57,6 +57,9 @@ jobs:
         username: ubuntu
         key: ${{ secrets.SSH }}
         script: |
-          cd /home/ubuntu/cxonego-backend-main
+          # Load NVM to get access to the right environment
+          export NVM_DIR="/home/ubuntu/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          cd /home/ubuntu/${{ env.PROJECT_NAME }}
           cd src
-          /exact/path/to/pm2 reload cxonego-backend-main || /exact/path/to/pm2 start index.js --name cxonego-backend-main
+          pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
