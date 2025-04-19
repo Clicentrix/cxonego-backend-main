@@ -29,7 +29,7 @@ jobs:
       run: npm install --omit=dev
 
     - name: 🔄 Rsync Project to EC2
-      uses: burnett01/rsync-deployments@v2.0.0
+      uses: Burnett01/rsync-deployments@5.2.1
       with:
         switches: -avz --delete --exclude='.env' --exclude='node_modules' --exclude='.git'
         path: ./
