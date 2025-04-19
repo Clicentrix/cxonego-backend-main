@@ -38,20 +38,20 @@ jobs:
         remote_user: ubuntu
         remote_key: ${{ secrets.SSH }}
 
-    - name: ⚙️ Set .env and Restart PM2 on EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.HOST }}
-        username: ubuntu
-        key: ${{ secrets.SSH }}
-        script: |
-          cd /home/ubuntu/${{ env.PROJECT_NAME }}
+    # - name: ⚙️ Set .env and Restart PM2 on EC2
+    #   uses: appleboy/ssh-action@v1.0.3
+    #   with:
+    #     host: ${{ secrets.HOST }}
+    #     username: ubuntu
+    #     key: ${{ secrets.SSH }}
+    #     script: |
+    #       cd /home/ubuntu/${{ env.PROJECT_NAME }}
 
-          # Recreate .env securely from GitHub Secret
-          #echo "${{ secrets.ENV }}" > .env
+    #       # Recreate .env securely from GitHub Secret
+    #       #echo "${{ secrets.ENV }}" > .env
 
-          # Install prod dependencies on EC2
-          yarn install --omit=dev
+    #       # Install prod dependencies on EC2
+    #       yarn install --omit=dev
 
-          # Restart PM2 process or start if not running
-          pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
+    #       # Restart PM2 process or start if not running
+    #       pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
