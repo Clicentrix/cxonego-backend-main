@@ -60,9 +60,9 @@ jobs:
           export PATH=$PATH:/usr/bin:/usr/local/bin:/home/ubuntu/.npm-global/bin:/home/ubuntu/.nvm/versions/node/*/bin
           
           cd /home/ubuntu/${{ env.PROJECT_NAME }}
+          cd src
           
-          # Install prod dependencies on EC2
-          #npm install --omit=dev
+        
           
           # Restart PM2 process or start if not running
-         # pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
+          pm2 reload ${{ env.PROJECT_NAME }} || pm2 start index.js --name ${{ env.PROJECT_NAME }}
