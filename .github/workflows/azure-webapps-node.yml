@@ -40,14 +40,14 @@ jobs:
     - name: ⚙️ Set .env and Restart PM2 on EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.EC2_HOST }}
+        host: ${{ secrets.HOST }}
         username: ubuntu
-        key: ${{ secrets.EC2_SSH_KEY }}
+        key: ${{ secrets.SSH }}
         script: |
           cd /home/ubuntu/${{ env.PROJECT_NAME }}
 
           # Recreate .env securely from GitHub Secret
-          echo "${{ secrets.ENV_FILE_CONTENTS }}" > .env
+          echo "${{ secrets.ENV }}" > .env
 
           # Install prod dependencies on EC2
           npm install --omit=dev
