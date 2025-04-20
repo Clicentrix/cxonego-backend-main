@@ -167,6 +167,15 @@ import { Organisation } from "./Organisation";
   })
   description:string;
 
+  @Column({
+    type: "varchar",
+    nullable: true
+  })
+  externalId: string;
+
+  @Column({ nullable: true })
+  leadType: string;
+
   @BeforeInsert()
   @BeforeUpdate()
   encrypt() {
@@ -179,7 +188,6 @@ import { Organisation } from "./Organisation";
     if(this.email )  this.email =encryption(this.email);
     if(this.state)  this.state =encryption(this.state);
     if(this.city )  this.city =encryption(this.city);
-    if(this.title)  this.title =encryption(this.title);
     if(this.description)  this.description =encryption(this.description);
     if(this.price) this.price =encryption(this.price);    
     }
@@ -194,4 +202,37 @@ import { Organisation } from "./Organisation";
       console.log(this)
     }
   }
+  
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Lead:
+ *       type: object
+ *       required:
+ *         - title
+ *         - status
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Auto-generated ID of the lead
+ *         title:
+ *           type: string
+ *           description: Title of the lead
+ *         status:
+ *           type: string
+ *           enum: [New, In Progress, Qualified, Closed]
+ *           description: Current status of the lead
+ *         description:
+ *           type: string
+ *           description: Detailed description of the lead
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: Creation timestamp
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           description: Last update timestamp
+ */
   

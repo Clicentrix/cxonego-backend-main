@@ -462,5 +462,52 @@ class LeadController {
       errorHandler(response, error.message);
     }
   }
+
+  async assignLeadsByTitle(request: CustomRequest, response: Response) {
+    try {
+      const leadTitle: string = request.params.leadTitle;
+      const { userId } = request.body;
+
+      if (!leadTitle) {
+        return makeResponse(response, 400, false, "Lead title is required", null);
+      }
+
+      if (!userId) {
+        return makeResponse(response, 400, false, "User ID is required", null);
+      }
+
+      const result = await AppDataSource.transaction(
+        async (transactionEntityManager) => {
+          const updatedLeads = await leadService.assignLeadsByTitle(
+            leadTitle,
+            userId,
+            request.user,
+            transactionEntityManager
+          );
+          return updatedLeads;
+        }
+      );
+
+      if (result?.affected === 0) {
+        return makeResponse(
+          response, 
+          200, 
+          true, 
+          "No leads found with the specified title", 
+          { affected: 0 }
+        );
+      }
+
+      return makeResponse(
+        response,
+        200,
+        true,
+        "Leads assigned successfully",
+        result
+      );
+    } catch (error) {
+      return errorHandler(response, error);
+    }
+  }
 }
 export default LeadController;

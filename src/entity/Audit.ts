@@ -66,11 +66,9 @@ export class Audit extends CustomBaseEntity {
   @JoinColumn({ name: "contactId" })
   contact: Contact;
 
-  @ManyToOne(() => Lead, {
-    // onDelete:"CASCADE",
-    onUpdate: "CASCADE",
-    eager: true,
+  @ManyToOne(() => Lead, { 
     nullable: true,
+    onDelete: "SET NULL" 
   })
   @JoinColumn({ name: "leadId" })
   lead: Lead;

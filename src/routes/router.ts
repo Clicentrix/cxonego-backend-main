@@ -23,9 +23,11 @@ import subscriptionRouter from "./subscription.routes";
 import customPlanRequestRouter from "./customPlanRequest.routes";
 import superAdminRouter from "./superAdmin.routes";
 import cronRouter from "./cron.routes";
+import leadAssignmentRouter from "./leadAssignment.routes";
 // import customeToken from "./firebaseToken.routes";
 
 const router = Router({ mergeParams: true });
+router.use("/leadAssignment", leadAssignmentRouter)
 router.use("/auth", authRouter)
 router.use("/lead", leadRouter);
 router.use("/contact", contactRouter);

@@ -4,6 +4,9 @@ import * as not from "../services/pushNotification.service";
 import ActivityServices from "../services/activity.service";
 import CronService from "../services/cron.service";
 import { decrypt } from "./utils";
+import IndiaMartService from "../services/indiaMart.service";
+import * as cron from 'node-cron';
+
 const activityReminder = new ActivityServices();
 
 // Define a type for the task structure
@@ -251,7 +254,7 @@ function formatDateToIST(date: Date) {
     timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "long",
-    day: "2-digit",
+    day: "2-digit" ,
   });
   const formattedDate = dateFormatter.format(date);
 
@@ -260,3 +263,16 @@ function formatDateToIST(date: Date) {
 
   return `${formattedTime} IST, ${formattedDate}`;
 }
+
+// India Mart lead fetching - test at a reasonable interval
+cron.schedule('*/60 * * * *', async () => {
+  try {
+    console.log('Fetching leads from India Mart...');
+    const indiaMartService = new IndiaMartService();
+    
+    const savedCount = await indiaMartService.processAndSaveLeads();
+    console.log(`Successfully imported ${savedCount} leads from India Mart`);
+  } catch (error) {
+    console.error('Error importing leads from India Mart:', error);
+  }
+});

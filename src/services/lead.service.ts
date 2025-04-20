@@ -1574,5 +1574,44 @@ class LeadService {
       return;
     }
   }
+
+  async assignLeadsByTitle(
+    leadTitle: string,
+    userId: string,
+    currentUser: any,
+    transactionEntityManager: EntityManager
+  ) {
+    try {
+      // First verify both the lead title and user exist
+      const userExists = await transactionEntityManager.findOne(User, {
+        where: { userId: userId }
+      });
+
+      if (!userExists) {
+        throw new Error("User not found");
+      }
+
+      // Encrypt the title for search if encryption is used in the system
+      const encryptedTitle = encryption(leadTitle);
+      
+      // Update all leads with matching title
+      const result = await transactionEntityManager
+        .createQueryBuilder()
+        .update(Lead)
+        .set({
+          owner: { userId: userId },
+          modifiedBy: currentUser.userId,
+          updatedAt: new Date()
+        })
+        .where("title = :title", { title: leadTitle })
+        .andWhere("deletedAt IS NULL")
+        .execute();
+
+      return result;
+    } catch (error) {
+      console.error("Error assigning leads by title:", error);
+      throw error;
+    }
+  }
 }
 export default LeadService;
