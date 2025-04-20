@@ -151,6 +151,8 @@ app.use(
       RegExp("^/api/v1/cron/sendMonthlyReport"),
       RegExp("^/api/v1/cron/checkActivity"),
       RegExp("^/api/v1/cron/markUpcomingToActive"),
+      RegExp("/api/v1/api-doc"),
+      RegExp("/api/v1/api-doc/.*"),
     ],
   })
 );

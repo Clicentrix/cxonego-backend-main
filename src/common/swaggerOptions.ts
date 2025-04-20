@@ -4,40 +4,53 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "APIs",
+      title: "CRM API Documentation",
       version,
+      description: "API documentation for the CRM system"
     },
-
     components: {
       securitySchemes: {
         bearerAuth: {
           type: "http",
-          in: "header",
-          name: "Authorization",
-          description: "Bearer token to access these api endpoints",
           scheme: "bearer",
           bearerFormat: "JWT",
-        },
+          description: "Enter your JWT token"
+        }
       },
+      schemas: {
+        Error: {
+          type: "object",
+          properties: {
+            message: {
+              type: "string",
+              description: "Error message"
+            },
+            error: {
+              type: "object",
+              description: "Error details" 
+            }
+          }
+        }
+      }
     },
     security: [
       {
-        bearerAuth: [],
-      },
+        bearerAuth: []
+      }
     ],
     servers: [
       {
         url: "/api/v1",
-        description: "",
-      },
-    ],
+        description: "API server"
+      }
+    ]
   },
   apis: [
     "./src/routes/*.ts",
+    "./src/controllers/*.ts", 
     "./src/schemas/*.ts",
-    "./src/routes/*.js",
-    "./src/schemas/*.js",
-  ],
+    "./src/entity/*.ts"
+  ]
 };
 
 export default options;
