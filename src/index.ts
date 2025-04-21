@@ -45,21 +45,35 @@ app.use(
   )
 );
 
+// IMPORTANT: Special route for captcha verification - must come BEFORE general CORS
+// This ensures the captcha endpoint gets its own CORS rules applied first
+app.options('/api/v1/superAdmin/verifyCaptcha', cors());  // Enable preflight for the captcha endpoint
+app.use('/api/v1/superAdmin/verifyCaptcha', cors({
+  origin: true, // Allow the request's origin
+  methods: ['POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Create an array of allowed origins, filtering out undefined values
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://13.235.48.242:5173',
   'http://13.235.48.242',
-  'http://13.235.48.:8000',
+  'http://13.235.48.242:8000',
   undefined // This will match requests without an origin header
 ].filter(Boolean) as (string | undefined)[];
 
+// General CORS for all other routes
 app.use(cors({ 
   credentials: true, 
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl requests)
     if (!origin) return callback(null, true);
+    
+    // Log to help diagnose issues
+    console.log(`Received request with origin: ${origin}`);
     
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
@@ -73,18 +87,32 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Add specific CORS settings for captcha endpoint - make it permissive
-app.use('/api/v1/superAdmin/verifyCaptcha', cors({
-  origin: '*', // Allow any origin for captcha verification
-  methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false // Set to false to allow '*' origin
-}));
-
 // Add security headers
 app.use((_req, res, next) => {
+  // Add Access-Control-Allow-Origin header to every response
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   next();
+});
+
+// Handle OPTIONS requests manually for all routes
+app.options('*', (req, res) => {
+  // Get the origin from the request header
+  const origin = req.headers.origin;
+  
+  // Log the origin for debugging
+  console.log(`OPTIONS request received from origin: ${origin}`);
+  
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Respond with 204 No Content
+  res.status(204).end();
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));
