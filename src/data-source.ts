@@ -5,6 +5,19 @@ import { ISTDateSubscriber } from "./ist-date-subscriber";
 
 dotenv.config();
 
+// Determine if we're in production
+const isProd = process.env.NODE_ENV === 'production';
+
+// Set the entity path based on environment
+const entitiesPath = isProd 
+  ? ["build/src/entity/*.js"]  // Production path (compiled JS files)
+  : ["src/entity/*.ts", "src/entity/*.js"];  // Development path (TS source files)
+
+// Set migrations path (only in development)
+const migrationsPath = isProd 
+  ? [] // No migrations in production
+  : ["src/migration/*.ts", "src/migration/*.js"];
+
 export const AppDataSource = new DataSource({
   type: "mysql",
   host: process.env.DATABASE_HOST,
@@ -15,9 +28,12 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: ["error"],
   // logging:true,
-  entities: ["src/entity/*.ts", "src/entity/*.js"],
-  migrations: ["src/migration/*.ts", "src/migration/*.js"],
+  entities: entitiesPath,
+  migrations: migrationsPath,
   extra: {
-    timezone: "Z", 
+    timezone: "Z",
+    // Add connection parameters using proper MySQL2 option names
+    connectTimeout: 60000,
   },
+  subscribers: [ISTDateSubscriber]
 });

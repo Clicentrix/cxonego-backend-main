@@ -45,9 +45,16 @@ app.use(
   )
 );
 
+// Create an array of allowed origins, filtering out undefined values
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://13.235.48.242:5173'
+].filter(Boolean) as string[];
+
 app.use(cors({ 
   credentials: true, 
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://13.235.48.242:5173'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -55,9 +62,9 @@ app.use(cors({
 // Add specific CORS settings for captcha endpoint
 app.use('/api/v1/superAdmin/verifyCaptcha', cors({
   credentials: true,
-  origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://13.235.48.242:5173'],
+  origin: allowedOrigins,
   methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Add security headers
@@ -137,11 +144,32 @@ app.use(errorMiddleware);
 app.listen(port, async () => {
   logger.info("App Started on port", { port });
   console.log(`Server running at http://localhost:${port}`);
+  
+  // Database connection with better error handling
   try {
+    // Log database connection parameters (without password)
+    console.log("Attempting database connection with:", {
+      host: process.env.DATABASE_HOST,
+      port: Number.parseInt(process.env.DATABASE_PORT ?? "3306"),
+      username: process.env.DATABASE_USER_NAME,
+      database: process.env.DATABASE_NAME,
+    });
+    
+    // Initialize database connection
     await AppDataSource.initialize();
+    
     logger.info("Database connection successful...");
   } catch (error) {
-    logger.error(error);
+    logger.error("Database connection error:", error);
+    console.error("Failed to connect to database. Details:", {
+      message: error.message,
+      code: error.code,
+      errno: error.errno,
+      stack: error.stack,
+    });
+    
+    // Don't crash the server on database connection failure
+    // This allows the server to start and serve routes that don't require database
   }
 });
 
