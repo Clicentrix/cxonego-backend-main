@@ -70,5 +70,4 @@ jobs:
           export NVM_DIR="/home/ubuntu/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           cd /home/ubuntu/${{ env.PROJECT_NAME }}
-          cd src
           pm2 reload ${{ env.PROJECT_NAME }} || pm2 start ecosystem.config.js --env production --name ${{ env.PROJECT_NAME }}
