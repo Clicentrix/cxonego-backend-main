@@ -55,7 +55,7 @@ app.use('/api/v1/superAdmin/verifyCaptcha', cors({
   credentials: true
 }));
 
-// Create an array of allowed origins, filtering out undefined values
+
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
@@ -69,13 +69,13 @@ const allowedOrigins = [
 app.use(cors({ 
   credentials: true, 
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests)
+  
     if (!origin) return callback(null, true);
     
-    // Log to help diagnose issues
+
     console.log(`Received request with origin: ${origin}`);
     
-    // Check if origin is in allowed list
+
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
@@ -176,7 +176,7 @@ const limiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-// Apply the rate limiting middleware to all requests
+
 app.use("/api", limiter);
 
 app.use("/api/v1", router);
