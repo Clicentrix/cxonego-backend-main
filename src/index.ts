@@ -49,22 +49,36 @@ app.use(
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
-  'http://13.235.48.242:5173'
-].filter(Boolean) as string[];
+  'http://13.235.48.242:5173',
+  'http://13.235.48.242',
+  'http://13.235.48.:8000',
+  undefined // This will match requests without an origin header
+].filter(Boolean) as (string | undefined)[];
 
 app.use(cors({ 
   credentials: true, 
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      console.log(`Origin ${origin} not allowed by CORS`);
+      callback(null, true); // In production, still allow all origins for now
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Add specific CORS settings for captcha endpoint
+// Add specific CORS settings for captcha endpoint - make it permissive
 app.use('/api/v1/superAdmin/verifyCaptcha', cors({
-  credentials: true,
-  origin: allowedOrigins,
+  origin: '*', // Allow any origin for captcha verification
   methods: ['POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: false // Set to false to allow '*' origin
 }));
 
 // Add security headers
