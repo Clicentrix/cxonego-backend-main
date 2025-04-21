@@ -64,9 +64,12 @@ jobs:
           # Navigate to deploy directory
           cd /home/ubuntu/${{ env.PROJECT_NAME }}_deploy
           
-          # Copy build files to the actual application directory
+          # Create application directory and clear previous build
           mkdir -p /home/ubuntu/${{ env.PROJECT_NAME }}
-          cp -r build/* /home/ubuntu/${{ env.PROJECT_NAME }}
+          rm -rf /home/ubuntu/${{ env.PROJECT_NAME }}/*
+          
+          # Copy build directory with intact structure
+          cp -r build /home/ubuntu/${{ env.PROJECT_NAME }}/
           
           # Copy ecosystem.config.js to the application directory
           cp ecosystem.config.js /home/ubuntu/${{ env.PROJECT_NAME }}/
@@ -75,10 +78,10 @@ jobs:
           cd /home/ubuntu/${{ env.PROJECT_NAME }}
           
           # Stop existing PM2 process if it exists
-          pm2 stop ${{ env.PROJECT_NAME }} || true
+          pm2 delete ${{ env.PROJECT_NAME }} || true
           
           # Start the application with ecosystem.config.js in production mode
-          pm2 start ecosystem.config.js --env production || pm2 restart ${{ env.PROJECT_NAME }}
+          pm2 start ecosystem.config.js --env production
           
           # Save PM2 process list to survive server restarts
           pm2 save
