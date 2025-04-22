@@ -265,7 +265,7 @@ function formatDateToIST(date: Date) {
 }
 
 // India Mart lead fetching - test at a reasonable interval
-cron.schedule('*/1 * * * *', async () => {
+cron.schedule('*/60 * * * *', async () => {
   try {
     console.log('Fetching leads from India Mart...');
     const indiaMartService = new IndiaMartService();
