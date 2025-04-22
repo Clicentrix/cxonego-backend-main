@@ -44,7 +44,7 @@ jobs:
       uses: Burnett01/rsync-deployments@5.2.1
       with:
         switches: -avz --delete --exclude='.env' --exclude='node_modules' --exclude='.git'
-        path: ./build/  # Adjust this to your actual build output directory
+        path:  ./ # Adjust this to your actual build output directory
         remote_path: /home/ubuntu/${{ env.PROJECT_NAME }}
         remote_host: ${{ secrets.HOST }}
         remote_user: ubuntu
