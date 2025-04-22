@@ -15,7 +15,7 @@ export class LeadAssignment {
   @PrimaryGeneratedColumn("uuid")
   leadAssignmentId: string;
 
-  @Column({ unique: true })
+  @Column({ unique: false })
   leadType: string; // Product name from IndiaMart
 
   @ManyToOne(() => User)
