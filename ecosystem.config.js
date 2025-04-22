@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: "cxonego-backend-main",
-      script: "src/index.js",
+      script: "build/src/index.js",
       env: {
         NODE_ENV: "production",
       },
