@@ -62,6 +62,12 @@ const allowedOrigins = [
   'http://13.235.48.242:5173',
   'http://13.235.48.242',
   'http://13.235.48.242:8000',
+  'https://cxonego.me',
+  'https://cxonego.me:8000',
+  'https://cxonego.com:5173',
+  'http://cxonego.com:8000',
+  'http://cxonego.com:5173',
+  // ,
   undefined // This will match requests without an origin header
 ].filter(Boolean) as (string | undefined)[];
 
