@@ -165,6 +165,29 @@ export class Contact extends CustomBaseEntity{
     @OneToMany(() => Document, (document) => document.contact)
     documents: Document[];
 
+    /**
+     * Get a display name suitable for folder creation
+     * Returns a combination of first and last name, or Contact-ID if names are not available
+     */
+    getDisplayName(): string {
+        let displayName = '';
+        
+        if (this.firstName) {
+            displayName += this.firstName;
+        }
+        
+        if (this.lastName) {
+            if (displayName) displayName += ' ';
+            displayName += this.lastName;
+        }
+        
+        if (!displayName.trim()) {
+            displayName = `Contact-${this.contactId}`;
+        }
+        
+        return displayName;
+    }
+
     @BeforeInsert()
     @BeforeUpdate()
     encrypt() {

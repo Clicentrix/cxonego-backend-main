@@ -100,9 +100,28 @@ export class DocumentService {
             throw new Error('User not connected to Google Drive. Please authenticate first.');
         }
 
-        // Create file in Drive using user's tokens
-        const { fileId, webViewLink } = await this.googleDriveService.uploadFileWithUserAuth(
+        // Generate contact folder name from contact's first and last name
+        let contactName = '';
+        
+        // Check if firstName and lastName exist and create a folder name
+        if (contact.firstName) {
+            contactName += contact.firstName;
+        }
+        
+        if (contact.lastName) {
+            if (contactName) contactName += ' ';
+            contactName += contact.lastName;
+        }
+        
+        // If no name is available, use the contact ID
+        if (!contactName.trim()) {
+            contactName = `Contact-${contactId}`;
+        }
+
+        // Create file in Drive using folder structure
+        const { fileId, webViewLink } = await this.googleDriveService.uploadFileToContactFolder(
             userId,
+            contactName,
             file.buffer,
             file.mimetype,
             file.originalname
