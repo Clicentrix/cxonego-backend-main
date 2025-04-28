@@ -13,8 +13,7 @@ module.exports = {
       env_production: {
         NODE_ENV: "production",
       },
-      env_file: ".env",
-      node_args: "--require=dotenv/config"
+      env_file: ".env"
     }
   ]
 }; 
