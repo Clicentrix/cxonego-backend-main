@@ -209,29 +209,36 @@ export class DocumentService {
         const skip = (page - 1) * limit;
         
         // Build the query
+        // let query = this.documentRepository.createQueryBuilder('document')
+        //     .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
         let query = this.documentRepository.createQueryBuilder('document')
-            .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
-            // Select only necessary user fields to avoid decrypting unnecessary ones
-            .select([
-                'document',
-                'uploadedBy.userId',
-                'uploadedBy.email',
-                'uploadedBy.firstName',
-                'uploadedBy.lastName',
-                'uploadedBy.countryCode',
-                'uploadedBy.phone',
-                'uploadedBy.country',
-                'uploadedBy.state',
-                'uploadedBy.city',
-                'uploadedBy.theme',
-                'uploadedBy.currency',
-                'uploadedBy.industry',
-                'uploadedBy.jobtitle',
-                'uploadedBy.primaryIntension',
-                'uploadedBy.fcmWebToken'
-            ])
-            .where('document.contact = :contactId', { contactId })
-            .andWhere('document.deletedAt IS NULL');
+    .leftJoin('document.uploadedBy', 'uploadedBy')
+    .select([
+        'document.documentId',
+        'document.fileName',
+        'document.description',
+        'document.createdAt',
+        'document.updatedAt',
+        'document.googleDriveLink',
+        'uploadedBy.userId',
+        'uploadedBy.email',
+        'uploadedBy.firstName',
+        'uploadedBy.lastName',
+        'uploadedBy.countryCode',
+        'uploadedBy.phone',
+        'uploadedBy.country',
+        'uploadedBy.state',
+        'uploadedBy.city',
+        'uploadedBy.theme',
+        'uploadedBy.currency',
+        'uploadedBy.industry',
+        'uploadedBy.jobtitle',
+        'uploadedBy.primaryIntension',
+        'uploadedBy.fcmWebToken'
+    ])
+    .where('document.contact = :contactId', { contactId })
+    .andWhere('document.deletedAt IS NULL');
+
         
         // Add user restriction if not admin
         if (!isAdmin) {
@@ -640,6 +647,7 @@ export class DocumentService {
             if (doc.uploadedBy) {
                 await userDecryption(doc.uploadedBy);
             }
+            console.log("DOCUMENTS AFTER DECRYPTION (getDocumentsByAccount):", JSON.stringify(doc, null, 2));
             decryptedDocuments.push(doc);
         }
         
