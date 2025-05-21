@@ -504,4 +504,104 @@ export class GoogleDriveService {
             throw new Error(`Authentication setup failed: ${error.message}`);
         }
     }
+
+    /**
+     * Uploads a file to a specific account's folder in Google Drive,
+     * creating the folder structure if it doesn't exist.
+     * 
+     * Structure:
+     * cxonego
+     * └── Documents
+     *     └── accounts
+     *         └── [account_name]
+     *             └── uploaded_file.ext
+     * 
+     * @param userId User ID for authentication
+     * @param accountName Name of the account for folder naming
+     * @param fileBuffer File content as buffer
+     * @param mimeType MIME type of the file
+     * @param fileName Name of the file to be uploaded
+     * @returns Object containing fileId and webViewLink
+     */
+    async uploadFileToAccountFolder(
+        userId: string,
+        accountName: string,
+        fileBuffer: Buffer,
+        mimeType: string,
+        fileName: string
+    ): Promise<{ fileId: string, webViewLink: string }> {
+        try {
+            // Sanitize account name for use as folder name (remove special chars)
+            const sanitizedAccountName = accountName.replace(/[^\w\s-]/g, '_');
+            
+            // Get user's stored tokens
+            const tokens = await this.getUserTokens(userId);
+            if (!tokens) {
+                throw new Error('User not authenticated with Google Drive');
+            }
+
+            // Setup authentication
+            await this.setupAuthentication(userId, tokens);
+
+            // Cache for folder IDs to avoid repeated lookups
+            const folderCache: Record<string, string> = {};
+            
+            // Step 1: Find or create the root "cxonego" folder
+            const rootFolderId = await this.findOrCreateFolder('cxonego', 'root', folderCache);
+            
+            // Step 2: Find or create "Documents" subfolder
+            const documentsFolderId = await this.findOrCreateFolder('Documents', rootFolderId, folderCache);
+            
+            // Step 3: Find or create "accounts" subfolder
+            const accountsFolderId = await this.findOrCreateFolder('accounts', documentsFolderId, folderCache);
+            
+            // Step 4: Find or create specific account folder
+            const accountFolderId = await this.findOrCreateFolder(sanitizedAccountName, accountsFolderId, folderCache);
+
+            // Step 5: Upload the file to the account's folder
+            console.log(`Uploading file "${fileName}" to account folder "${sanitizedAccountName}"`);
+            
+            // Create file in Drive
+            const createResponse = await this.drive.files.create({
+                requestBody: {
+                    name: fileName,
+                    mimeType: mimeType,
+                    parents: [accountFolderId] // Specify parent folder
+                },
+                media: {
+                    mimeType: mimeType,
+                    body: Readable.from(fileBuffer)
+                }
+            });
+
+            const fileId = createResponse.data.id;
+            
+            if (!fileId) {
+                throw new Error('Failed to create file in Google Drive');
+            }
+
+            // Set file permissions (viewable by anyone with the link)
+            await this.drive.permissions.create({
+                fileId: fileId,
+                requestBody: {
+                    role: 'reader',
+                    type: 'anyone'
+                }
+            });
+
+            // Get the web view link
+            const getResponse = await this.drive.files.get({
+                fileId: fileId,
+                fields: 'webViewLink'
+            });
+
+            return {
+                fileId: fileId,
+                webViewLink: getResponse.data.webViewLink || ''
+            };
+        } catch (error) {
+            console.error('Error uploading file to account folder:', error);
+            throw new Error(`Failed to upload file to account folder: ${error.message}`);
+        }
+    }
 } 

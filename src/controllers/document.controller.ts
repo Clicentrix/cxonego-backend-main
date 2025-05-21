@@ -2,7 +2,13 @@ import { Request, Response } from "express";
 import { DocumentService } from "../services/document.service";
 import { buildResponse } from "../common/utils";
 import { DocumentType } from "../entity/Document";
+import { makeResponse } from "../common/utils";
+import { errorHandler } from "../common/errors";
+import * as multer from "multer";
 
+// Configure multer for in-memory storage
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 interface ExtendedRequest extends Request {
     user?: {
@@ -205,34 +211,46 @@ export class DocumentController {
                 return res.status(401).json(buildResponse("", "Unauthorized"));
             }
             
-            console.log("contactId is this:", contactId);
-            console.log("userId is this:", userId);
-            console.log("Pagination:", { page, limit });
-            console.log("Search:", search);
-            console.log("Date filters:", { createdAt, updatedAt });
-
-            // Get documents with pagination
-            const documents = await this.documentService.getDocumentsByContact(
+            console.log("getDocumentsByContact request:", { 
                 contactId, 
                 userId, 
                 page, 
-                limit,
-                search,
-                createdAt,
-                updatedAt
-            );
-            
-            console.log("documents is this:", documents);
+                limit, 
+                search, 
+                createdAt, 
+                updatedAt 
+            });
 
-            // Return appropriate response based on results
-            if (!documents.data || documents.data.length === 0) {
-                return res.status(200).json(buildResponse({ 
-                    data: [],
-                    pagination: documents.pagination
-                }, "No documents found"));
+            // Get documents with pagination
+            try {
+                const documents = await this.documentService.getDocumentsByContact(
+                    contactId, 
+                    userId, 
+                    page, 
+                    limit,
+                    search,
+                    createdAt,
+                    updatedAt
+                );
+                
+                console.log("Documents retrieved successfully:", {
+                    count: documents.data ? documents.data.length : 0,
+                    total: documents.pagination.total
+                });
+
+                // Return appropriate response based on results
+                if (!documents.data || documents.data.length === 0) {
+                    return res.status(200).json(buildResponse({ 
+                        data: [],
+                        pagination: documents.pagination
+                    }, "No documents found"));
+                }
+                
+                return res.status(200).json(buildResponse(documents, "Documents retrieved successfully"));
+            } catch (serviceError) {
+                console.error("Document service error:", serviceError);
+                return res.status(500).json(buildResponse("", "Error processing documents", serviceError.message));
             }
-            
-            return res.status(200).json(buildResponse(documents, "Documents retrieved successfully"));
         } catch (error) {
             console.error("Error getting documents by contact:", error);
             return res.status(500).json(buildResponse("", "Failed to get documents", error));
@@ -356,6 +374,83 @@ export class DocumentController {
             return res.status(200).json(buildResponse(authUrl, "Google reconnect URL generated successfully"));
         } catch (error) {
             return res.status(500).json(buildResponse("", "Failed to get reconnect URL", error));
+        }
+    }
+
+    async uploadAccountDocument(req: ExtendedRequest, response: Response) {
+        try {
+            if (!req.file) {
+                return makeResponse(response, 400, false, "No file uploaded", null);
+            }
+
+            const { accountId } = req.params;
+            const userId = req.user?.userId;
+            
+            if (!userId) {
+                return makeResponse(response, 401, false, "Unauthorized", null);
+            }
+            
+            const { description, documentType, customDocumentType } = req.body;
+            
+            // Parse dates if provided
+            let startTime, endTime;
+            if (req.body.startTime) {
+                startTime = new Date(req.body.startTime);
+            }
+            if (req.body.endTime) {
+                endTime = new Date(req.body.endTime);
+            }
+
+            const result = await this.documentService.uploadAccountDocument(
+                req.file,
+                accountId,
+                userId,
+                description,
+                documentType,
+                customDocumentType,
+                startTime,
+                endTime
+            );
+
+            return makeResponse(response, 200, true, "Document uploaded successfully", result);
+        } catch (error) {
+            console.error("Error uploading account document:", error);
+            errorHandler(response, error);
+        }
+    }
+
+    async getAccountDocuments(req: ExtendedRequest, response: Response) {
+        try {
+            const { accountId } = req.params;
+            const userId = req.user?.userId;
+            
+            if (!userId) {
+                return makeResponse(response, 401, false, "Unauthorized", null);
+            }
+            
+            // Extract pagination params
+            const page = req.query.page ? parseInt(req.query.page as string) : 1;
+            const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+            
+            // Extract search and sorting params
+            const search = req.query.search as string;
+            const createdAt = req.query.createdAt as string;
+            const updatedAt = req.query.updatedAt as string;
+
+            const result = await this.documentService.getDocumentsByAccount(
+                accountId,
+                userId,
+                page,
+                limit,
+                search,
+                createdAt,
+                updatedAt
+            );
+
+            return makeResponse(response, 200, true, "Account documents retrieved successfully", result);
+        } catch (error) {
+            console.error("Error retrieving account documents:", error);
+            errorHandler(response, error);
         }
     }
 } 

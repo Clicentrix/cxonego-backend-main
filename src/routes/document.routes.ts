@@ -375,4 +375,81 @@ router.get("*connection*", (req, res, next) => {
     });
 });
 
+/**
+ * @swagger
+ * /api/v1/document/account/{accountId}:
+ *   post:
+ *     tags:
+ *       - Documents
+ *     summary: Upload a document for an account
+ *     description: Upload a file to Google Drive and associate with an account
+ *     parameters:
+ *       - in: path
+ *         name: accountId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: File to upload
+ *               description:
+ *                 type: string
+ *                 description: Description of the document
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: Document uploaded successfully
+ *       400:
+ *         description: No file uploaded
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to upload document
+ */
+router.post(
+    "/account/:accountId",
+    upload.single('file'),
+    documentController.uploadAccountDocument.bind(documentController)
+);
+
+/**
+ * @swagger
+ * /api/v1/document/account/{accountId}:
+ *   get:
+ *     tags:
+ *       - Documents
+ *     summary: Get all documents for an account
+ *     description: Retrieves all documents associated with an account. If user is admin, gets all documents. Otherwise, gets only documents uploaded by the user.
+ *     parameters:
+ *       - in: path
+ *         name: accountId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID of the account
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Documents retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to get documents
+ */
+router.get(
+    "/account/:accountId",
+    documentController.getAccountDocuments.bind(documentController)
+);
+
 export default router; 

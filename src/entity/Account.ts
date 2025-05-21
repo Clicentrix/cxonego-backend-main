@@ -10,6 +10,8 @@ import { Activity } from "./Activity";
 import { User } from "./User";
 import { Note } from "./Note";
 import { Organisation } from "./Organisation";
+import { Document } from "./Document";
+
 @Entity()
 export class Account extends CustomBaseEntity{
     constructor(payload: Account) {
@@ -114,6 +116,9 @@ export class Account extends CustomBaseEntity{
     @OneToMany(()=>Note,(Note)=>Note.company)
     notes:Note[];
 
+    @OneToMany(() => Document, (document) => document.account)
+    documents: Document[];
+
     @ManyToOne(() => Organisation, (Organisation) => Organisation.companys, {
         cascade: true,
         // onDelete: "CASCADE",
@@ -123,6 +128,17 @@ export class Account extends CustomBaseEntity{
     })
     @JoinColumn({ name: "organizationId" })
     organization:Organisation;
+
+    /**
+     * Get a display name suitable for folder creation
+     * Returns account name or Account-ID if name is not available
+     */
+    getDisplayName(): string {
+        if (this.accountName && this.accountName.trim()) {
+            return this.accountName;
+        }
+        return `Account-${this.accountId}`;
+    }
 
     @BeforeInsert()
     @BeforeUpdate()

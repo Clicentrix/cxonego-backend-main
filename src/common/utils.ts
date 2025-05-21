@@ -317,14 +317,21 @@ export enum referStatus {
 //-------------------
 const key = Buffer.from("df32a38775fe682bf3bede615b8707c2", "hex");
 const staticIV = Buffer.from("9ad530ff86c4b33c21258adaf364e354", "hex");
+
+// Log keys at module load to see them once
+console.log("Cryptography Key (hex):", key.toString('hex'));
+console.log("Cryptography IV (hex):", staticIV.toString('hex'));
+
 export function encryption(text: string) {
   try {
+    // console.log("[Encryption] Using Key:", key.toString('hex')); // Optional: uncomment for per-call logging
+    // console.log("[Encryption] Using IV:", staticIV.toString('hex')); // Optional: uncomment for per-call logging
     const cipher = crypto.createCipheriv("aes-128-cbc", key, staticIV);
     let encrypted = cipher.update(text, "utf8", "base64");
     encrypted += cipher.final("base64");
     return encrypted;
   } catch (error) {
-    console.error("Encryption error:", error);
+    console.error("ENCRYPTION error:", error);
     throw error; // or handle it appropriately
   }
 }
@@ -335,13 +342,48 @@ export function decrypt(encryptedData: string) {
     return encryptedData;
   }
 
-  try{
+  // Heuristic: If the data is short and doesn't contain characters outside of A-Za-z0-9
+  // (like +, / which are common in Base64 from AES), it might be plaintext already.
+  // Our AES encrypted Base64 strings are typically longer.
+  // This is to avoid ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH for short, unencrypted enum-like values
+  // that might not have been processed by the entity's encrypt() hook.
+  if (encryptedData.length < 16 && /^[A-Za-z0-9]+$/.test(encryptedData) && !encryptedData.includes('+') && !encryptedData.includes('/')) {
+    // Example: "MSA", "OTHER", "NDA"
+    // These would fail decryption with ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH
+    // if they were not actually encrypted.
+    console.log("Data appears to be unencrypted or not in expected Base64 format (short, specific charset):", encryptedData.substring(0, 20) + "...");
+    return encryptedData;
+  }
+
+  // Existing check for general Base64 characters.
+  // This will catch malformed Base64 strings but allows short ones like "MSA" to pass.
+  // The check above is more specific for our potential plaintext enum issue.
+  if (!/^[A-Za-z0-9+/=]*$/.test(encryptedData)) {
+    console.log("Data is not valid Base64:", encryptedData.substring(0, 20) + "...");
+    return encryptedData;
+  }
+  
+  // Additional check: valid Base64 strings usually have a length multiple of 4.
+  // However, our encryption output might not always be padded to a multiple of 4 by default with '='
+  // if the Base64 library/encoder used during encryption strips them. But crypto's output usually has it.
+  // Let's be cautious and rely on the try-catch for most Base64 structural issues.
+
+  try {
+    // console.log("[Decryption] Using Key:", key.toString('hex')); // Optional: uncomment for per-call logging
+    // console.log("[Decryption] Using IV:", staticIV.toString('hex')); // Optional: uncomment for per-call logging
     const decipher = crypto.createDecipheriv("aes-128-cbc", key, staticIV);
     let decrypted = decipher.update(encryptedData, "base64", "utf8");
     decrypted += decipher.final("utf8");
     return decrypted;
-  }catch(error){
-    return encryptedData
+  } catch(error) {
+    const err = error as Error & { code?: string };
+    if (err.code === 'ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH' && encryptedData.length < 16) {
+      console.warn(`Decryption failed (ERR_OSSL_WRONG_FINAL_BLOCK_LENGTH) for short data: "${encryptedData}". Returning original.`);
+      return encryptedData; // Likely an unencrypted short string like an enum value
+    }
+    console.error("DECRYPTION ERROR for data:", encryptedData.substring(0, 50) + (encryptedData.length > 50 ? "..." : ""));
+    console.error("Error details:", err.message, err.code ? `(code: ${err.code})` : '');
+    return encryptedData; // Return original data on decryption failure
   }
 }
 

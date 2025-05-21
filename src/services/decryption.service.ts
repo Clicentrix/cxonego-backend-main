@@ -211,8 +211,7 @@ export const userDecryption = async (userdata: User) => {
   if (userdata?.email) userdata.email = decrypt(userdata.email);
   if (userdata?.firstName) userdata.firstName = decrypt(userdata.firstName);
   if (userdata?.lastName) userdata.lastName = decrypt(userdata.lastName);
-  if (userdata?.countryCode)
-    userdata.countryCode = decrypt(userdata.countryCode);
+  if (userdata?.countryCode) userdata.countryCode = decrypt(userdata.countryCode);
   if (userdata?.phone) userdata.phone = decrypt(userdata.phone);
   if (userdata?.country) userdata.country = decrypt(userdata.country);
   if (userdata?.state) userdata.state = decrypt(userdata.state);
@@ -221,8 +220,7 @@ export const userDecryption = async (userdata: User) => {
   if (userdata?.currency) userdata.currency = decrypt(userdata.currency);
   if (userdata?.industry) userdata.industry = decrypt(userdata.industry);
   if (userdata?.jobtitle) userdata.jobtitle = decrypt(userdata.jobtitle);
-  if (userdata?.primaryIntension)
-    userdata.primaryIntension = decrypt(userdata.primaryIntension);
+  if (userdata?.primaryIntension) userdata.primaryIntension = decrypt(userdata.primaryIntension);
   if (userdata?.otp) userdata.otp = decrypt(userdata.otp);
 
   return userdata;
@@ -285,19 +283,127 @@ export const customPlanRequestDecryption = async (
 };
 
 export const documentDecryption = async (document: Document) => {
-  if (document?.fileName) document.fileName = decrypt(document.fileName);
-  if (document?.description) document.description = decrypt(document.description);
-  if (document?.customDocumentType) document.customDocumentType = decrypt(document.customDocumentType);
+  // Skip if document is null or undefined
+  if (!document) return document;
+  
+  // Detect if the document has already been processed by checking if fileName is not in Base64 format
+  // This check is primarily for the AES-encrypted Base64 string.
+  // We are modifying the original document object here.
+  const isPotentiallyAESEncryptedBase64 = (fieldValue: string | null | undefined): boolean => {
+    if (!fieldValue) return false;
+    // AES encrypted Base64 strings are usually longer and contain + or /
+    return fieldValue.length >= 16 && (fieldValue.includes('+') || fieldValue.includes('/') || fieldValue.includes('='));
+  };
+
+  console.log("Starting documentDecryption for documentId:", document.documentId);
+
+  if (isPotentiallyAESEncryptedBase64(document.fileName)) {
+    console.log("BEFORE AES DECRYPTION - fileName:", document.fileName?.substring(0,50));
+    document.fileName = decrypt(document.fileName!);
+    console.log("AFTER AES DECRYPTION - fileName:", document.fileName?.substring(0,50));
+  } else if (document.fileName) {
+    console.log("Skipping AES decryption for fileName (doesn't look AES/Base64 encrypted):", document.fileName?.substring(0,50));
+  }
+
+  if (isPotentiallyAESEncryptedBase64(document.description)) {
+    console.log("BEFORE AES DECRYPTION - description:", document.description?.substring(0,50));
+    document.description = decrypt(document.description!);
+    console.log("AFTER AES DECRYPTION - description:", document.description?.substring(0,50));
+  } else if (document.description) {
+    console.log("Skipping AES decryption for description (doesn't look AES/Base64 encrypted):", document.description?.substring(0,50));
+  }
+
+  // For documentType and customDocumentType, we rely on the improved decrypt function
+  // which handles short, potentially unencrypted values.
+  if (document.documentType) {
+    console.log("BEFORE AES DECRYPTION - documentType:", document.documentType);
+    document.documentType = decrypt(document.documentType);
+    console.log("AFTER AES DECRYPTION - documentType:", document.documentType);
+  }
+  if (document.customDocumentType) {
+    console.log("BEFORE AES DECRYPTION - customDocumentType:", document.customDocumentType);
+    document.customDocumentType = decrypt(document.customDocumentType);
+    console.log("AFTER AES DECRYPTION - customDocumentType:", document.customDocumentType);
+  }
+
+  // Now, attempt to Base64 decode fileName and description if they still look like Base64
+  // This handles cases where the *original* data might have been Base64 encoded before AES encryption (double encoding).
+  const tryBase64Decode = (value: string | null | undefined): string | null | undefined => {
+    if (!value) return value; // if value is null, undefined, or empty string, return it as is.
+
+    const looksLikeBase64 = /^[A-Za-z0-9+/=]+$/.test(value) && value.length > 3 && (value.length % 4 === 0 || value.includes('='));
+    
+    if (looksLikeBase64) {
+      try {
+        const decoded = Buffer.from(value, 'base64').toString('utf8');
+        if (Buffer.from(decoded, 'utf8').toString('base64') === value || Buffer.from(decoded, 'utf8').toString('base64').replace(/=+$/, '') === value.replace(/=+$/, '')) {
+            if (decoded !== value) { 
+              console.log(`Successfully Base64 decoded field that was previously: ${value.substring(0,30)}... to: ${decoded.substring(0,30)}...`);
+              return decoded;
+            } else {
+              return value;
+            }
+        } else {
+            return value; 
+        }
+      } catch (e) {
+        return value; 
+      }
+    }
+    return value;
+  };
+
+  // For fileName (string)
+  if (document.fileName) { 
+    const originalFileName = document.fileName;
+    const decodedFileName = tryBase64Decode(originalFileName);
+    if (typeof decodedFileName === 'string') {
+        document.fileName = decodedFileName;
+        if (originalFileName !== document.fileName) {
+            console.log(`fileName changed after Base64 decode attempt. Original: ${originalFileName.substring(0,50)}, New: ${document.fileName?.substring(0,50)}`);
+        }
+    } else {
+        // Should not happen if originalFileName is string, as tryBase64Decode would return a string.
+        // If it somehow becomes non-string, revert or set to empty to satisfy type 'string'.
+        // For safety, if decodedFileName is null/undefined, assign empty string or original.
+        // Given tryBase64Decode logic, if originalFileName is string, decodedFileName will be string.
+        // So, this else might be unreachable if originalFileName is string.
+        document.fileName = originalFileName; // Fallback to original if something unexpected happens
+    }
+  } else if (document.fileName === null || document.fileName === undefined) {
+    // If fileName was null/undefined from DB (though type is string, TypeORM might make it so if not initialized)
+    (document as any).fileName = ""; // Coerce to empty string if it was null/undefined to satisfy string type
+  }
+
+  // For description (string, but nullable in DB column means it can be undefined/null on object before initialization)
+  if (document.description !== undefined && document.description !== null && document.description !== '') { // If it's a non-empty string
+    const originalDescription = document.description;
+    const decodedDescription = tryBase64Decode(originalDescription); 
+    if (typeof decodedDescription === 'string') {
+        document.description = decodedDescription;
+        if (originalDescription !== document.description) {
+            console.log(`description changed after Base64 decode attempt. Original: ${originalDescription.substring(0,50)}, New: ${document.description?.substring(0,50)}`);
+        }
+    } else {
+        // This path implies tryBase64Decode made a string into null/undefined - should not happen.
+        // Fallback to original or empty string.
+        document.description = originalDescription; // Fallback to original
+    }
+  } else {
+    // If document.description was initially null, undefined, or empty string, ensure it's an empty string.
+    document.description = "";
+  }
+  
+  console.log("Finished documentDecryption for documentId:", document.documentId);
   return document;
 };
 
-export const multipleDocumentsDecryption = async (documents: Array<Document>) => {
+export const multipleDocumentsDecryption = async (documents: Array<Document>): Promise<Array<Document>> => {
   if (!documents || documents.length === 0) return documents;
   
-  const documentsArray: Array<Document> = [];
-  for (let document of documents) {
-    document = await documentDecryption(document);
-    documentsArray.push(document);
+  // Modify documents in place
+  for (let i = 0; i < documents.length; i++) {
+    documents[i] = await documentDecryption(documents[i]);
   }
-  return documentsArray;
+  return documents;
 };

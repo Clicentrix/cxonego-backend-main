@@ -1,8 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, BeforeInsert, BeforeUpdate } from "typeorm";
 import { CustomBaseEntity } from "./CustomBaseEntity";
 import { Contact } from "./Contact";
 import { User } from "./User";
 import { Organisation } from "./Organisation";
+import { Account } from "./Account";
 import { encryption } from "../common/utils";
 
 // Define the document types enum
@@ -18,9 +19,11 @@ export enum DocumentType {
 
 @Entity()
 export class Document extends CustomBaseEntity {
-    constructor(payload: Document) {
+    constructor(payload?: Document) {
         super();
-        Object.assign(this, { ...payload });
+        if (payload) {
+            Object.assign(this, { ...payload });
+        }
     }
 
     @PrimaryGeneratedColumn('uuid')
@@ -38,15 +41,11 @@ export class Document extends CustomBaseEntity {
     @Column()
     googleDriveLink: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: "text" })
     description: string;
 
-    @Column({
-        type: 'enum',
-        enum: DocumentType,
-        nullable: true
-    })
-    documentType: DocumentType;
+    @Column({ nullable: true })
+    documentType: string;
 
     @Column({ nullable: true })
     customDocumentType: string;
@@ -57,12 +56,22 @@ export class Document extends CustomBaseEntity {
     @Column({ nullable: true })
     endTime: Date;
 
+    @Column({ nullable: true })
+    deletedAt: Date;
+
     @ManyToOne(() => Contact, (contact) => contact.documents, {
+        nullable: true,
         onUpdate: "CASCADE",
-        nullable: false,
     })
     @JoinColumn({ name: "contactId" })
     contact: Contact;
+
+    @ManyToOne(() => Account, (account) => account.documents, {
+        nullable: true,
+        onUpdate: "CASCADE",
+    })
+    @JoinColumn({ name: "accountId" })
+    account: Account;
 
     @ManyToOne(() => User, (user) => user.documents, {
         onUpdate: "CASCADE",
@@ -73,15 +82,18 @@ export class Document extends CustomBaseEntity {
     uploadedBy: User;
 
     @ManyToOne(() => Organisation, {
+        nullable: true,
         onUpdate: "CASCADE",
-        nullable: true
     })
     @JoinColumn({ name: "organizationId" })
     organization: Organisation;
 
+    @BeforeInsert()
+    @BeforeUpdate()
     encrypt() {
-        if (this.fileName) this.fileName = encryption(this.fileName);
-        if (this.description) this.description = encryption(this.description);
-        if (this.customDocumentType) this.customDocumentType = encryption(this.customDocumentType);
+        // if (this.fileName) this.fileName = encryption(this.fileName);
+        // if (this.description) this.description = encryption(this.description);
+        // if (this.documentType) this.documentType = encryption(this.documentType);
+        // if (this.customDocumentType) this.customDocumentType = encryption(this.customDocumentType);
     }
 } 
